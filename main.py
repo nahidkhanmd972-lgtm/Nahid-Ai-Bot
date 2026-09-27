@@ -3,7 +3,6 @@ import os
 import threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from google import genai
-from google.genai import types
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -30,6 +29,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ADSTERRA_DIRECT_LINK = "https://www.highratecpmgate.com/your_adsterra_link_here"
 ADMIN_EMAIL = "nahidkhanmd972@gmail.com"
 
+# Gemini Client ইনিশিয়ালাইজেশন
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 system_prompt = (
@@ -111,13 +111,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import PIL.Image
         img = PIL.Image.open(file_path)
         
-        # লেটেস্ট gemini-3.5-flash মডেল ব্যবহার করা হয়েছে
         response = client.models.generate_content(
-            model='gemini-3.5-flash',
+            model='gemini-1.5-flash',
             contents=[user_caption, img],
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt
-            )
+            config={'system_instruction': system_prompt}
         )
         
         if os.path.exists(file_path):
@@ -137,13 +134,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
-        # লেটেস্ট gemini-3.5-flash মডেল ব্যবহার করা হয়েছে
         response = client.models.generate_content(
-            model='gemini-3.5-flash',
+            model='gemini-1.5-flash',
             contents=user_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt
-            )
+            config={'system_instruction': system_prompt}
         )
         await update.message.reply_text(response.text)
     except Exception as e:
