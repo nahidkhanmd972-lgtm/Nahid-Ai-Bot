@@ -12,14 +12,60 @@ from telegram.ext import (
 # ------------------------------------------------------------------
 # আপনার API Keys ও Token এখানে বসাবেন
 # ------------------------------------------------------------------
-TELEGRAM_BOT_TOKEN = "8390743902:AAEmRSdW6N5q3qhAbAN3PPRCE47C-gUZvao"
-GEMINI_API_KEY = "AQ.Ab8RN6JDSNOxgUxmwBPrStbltzy0U6Uyty51NlXjnKhmBmM8UQ"
-# ------------------------------------------------------------------
+import logging
+import os
+import google.generativeai as genai
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
-# Gemini API সেটিং (সবচেয়ে লেটেস্ট সঠিক মডেল দিয়ে)
-genai.configure(api_key="AQ.Ab8RN6JDSNOxgUxmwBPrStbltzy0U6Uyty51NlXjnKhmBmM8UQ")
-model = genai.GenerativeModel("gemini-3.8-flash")
+# Render Environment Variables থেকে Keys গ্রহণ
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# Gemini API সেটিং
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# লগিং কনফিগারেশন
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+
+
+# /start কমান্ড হ্যান্ডলার
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "হ্যালো! আমি আপনার AI অ্যাসিস্ট্যান্ট। আমাকে যেকোনো প্রশ্ন করতে পারেন।"
+    )
+
+
+# টেক্সট মেসেজ এবং Gemini AI দিয়ে উত্তর দেওয়ার হ্যান্ডলার
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text
+    try:
+        response = model.generate_content(user_text)
+        await update.message.reply_text(response.text)
+    except Exception as e:
+        await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
+
+
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
+    )
+
+    print("Bot is running...")
+    app.run_polling()
 # কাস্টম টেক্সট রেসপন্স
 WEBSITE_LINKS = {
     "হেল্প": "আপনাকে কীভাবে সাহায্য করতে পারি বলুন?",
