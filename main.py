@@ -136,9 +136,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import PIL.Image
         img = PIL.Image.open(file_path)
         
-        # Gemini-2.5-flash মডেল ব্যবহার (ছবি দ্রুত প্রসেসের জন্য সেরা)
+        # Gemini-1.5-flash মডেল ব্যবহার (ছবি দ্রুত প্রসেসের জন্য সেরা)
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=[user_caption, img],
             config={'system_instruction': system_prompt}
         )
@@ -165,9 +165,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
-        # Gemini-2.5-flash মডেল ব্যবহার (স্মার্ট ও দ্রুত রেসপন্সের জন্য)
+        # Gemini-1.5-flash মডেল ব্যবহার (স্মার্ট ও দ্রুত রেসপন্সের জন্য)
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=user_text,
             config={'system_instruction': system_prompt}
         )
