@@ -151,3 +151,17 @@ def main():
 
 if __name__ == "__main__":
     main()
+import os
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+import threading
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
+    httpd.serve_forever()
+
+# Background Thread এ ডামি সার্ভার চালু করা
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+# এরপর আপনার বটের আসল কোড থাকবে...
