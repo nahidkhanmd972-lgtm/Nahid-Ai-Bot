@@ -13,7 +13,7 @@ from telegram.ext import (
     filters,
 )
 
-# Render Health Check Timed Out সমস্যা সমাধানের জন্য ডামি সার্ভার
+# Render Health Check Timed Out সমাধান
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
     server_address = ('', port)
@@ -26,18 +26,15 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Adsterra Direct Link & Admin Email
 ADSTERRA_DIRECT_LINK = "https://www.highratecpmgate.com/your_adsterra_link_here"
 ADMIN_EMAIL = "nahidkhanmd972@gmail.com"
 
-# Gemini Client ইনিশিয়ালাইজেশন
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Gemini-কে দেওয়া নির্দেশাবলি
 system_prompt = (
     "তোমার নাম NAHID-AI। তোমাকে তৈরি করেছেন Md Nahid Hossen। "
-    "তুমি খুব দ্রুত, অত্যন্ত স্মার্ট এবং সুনির্দিষ্টভাবে বাংলা ভাষায় উত্তর দেবে। "
-    "কেউ তোমার নাম বা পরিচয় জানতে চাইলে বলবে: "
+    "তুমি খুব দ্রুত, স্মার্ট এবং অত্যন্ত বিনয়ীভাবে বাংলা ভাষায় উত্তর দেবে। "
+    "কেউ তোমার নাম জানতে চাইলে বা পরিচয় জিজ্ঞেস করলে বলবে: "
     "'আমি NAHID-AI, Md Nahid Hossen-এর তৈরি আপনার AI অ্যাসিস্ট্যান্ট। কীভাবে সাহায্য করতে পারি?'"
 )
 
@@ -46,7 +43,6 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-# /start কমান্ড হ্যান্ডলার
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "🤖 **NAHID-AI স্মার্ট অ্যাসিস্ট্যান্ট-এ আপনাকে স্বাগতম!**\n\n"
@@ -68,7 +64,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.callback_query:
         await update.callback_query.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-# বাটন ক্লিক হ্যান্ডলার
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -76,53 +71,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "opt_photo":
         msg = (
             "📸 **ছবি এডিটিং ও এআই বিশ্লেষণ:**\n\n"
-            "আপনার ছবিটি এখানে সেন্ড করুন এবং ছবির সাথে ক্যাপশনে লিখে দিন আপনি কী করতে চান:\n"
-            "• ছবি বিশ্লেষণ করা\n"
-            "• এডিটিং নির্দেশাবলি বা ব্যাকগ্রাউন্ড আইডিয়া\n"
-            "• পাসপোর্ট সাইজ ফটো টিপস\n\n"
-            "👉 *একটি ছবি পাঠিয়ে পরীক্ষা করে দেখুন!*"
+            "আপনার ছবিটি এখানে সেন্ড করুন এবং ক্যাপশনে লিখে দিন আপনি কী করতে চান।"
         )
         await query.message.reply_text(msg, parse_mode="Markdown")
 
     elif query.data == "opt_malaysia":
         msg = (
             "🇲🇾 **মালয়েশিয়া প্রবাসীদের জন্য বিশেষ নোটিশ:**\n\n"
-            "আমরা একটি বড় আপডেট আনছি! খুব শীঘ্রই এই বাটনে পাবেন:\n"
-            "✅ CIDB কার্ড চেক করার সঠিক পোর্টাল\n"
-            "✅ Visa status & Medical test চেক\n"
-            "✅ বাংলাদেশ হাই কমিশন মালয়েশিয়া সার্ভিসসমূহ\n"
-            "✅ রি-হায়ারিং ও কাজের দরকারি সব অফিশিয়াল ওয়েবসাইট!\n\n"
-            "🚀 *কাজ চলছে... খুব দ্রুতই লিংকগুলো যুক্ত হবে। বটটি পিন করে রাখুন!*"
+            "খুব শীঘ্রই এই বাটনে পাবেন CIDB, Visa status ও সরকারি লিঙ্কসমূহ!"
         )
         await query.message.reply_text(msg, parse_mode="Markdown")
 
     elif query.data == "opt_bd_gov":
         msg = (
-            "🇧🇩 **পাসপোর্ট ও বাংলাদেশ সরকারি সেবা (Upcoming):**\n\n"
-            "সকল সরকারি পোর্টাল এক ক্লিকে পেতে আপডেট আসছে:\n"
-            "📌 ই-পাসপোর্ট (E-Passport) আবেদন ও স্ট্যাটাস চেক\n"
-            "📌 এনআইডি (NID) সংশোধন ও অনলাইন কপি\n"
-            "📌 জন্ম নিবন্ধন অনলাইন যাচাইকরণের ওয়েবসাইট\n\n"
-            "⏳ *আপডেট পেতে সাথেই থাকুন।*"
+            "🇧🇩 **পাসপোর্ট ও সরকারি সেবা (Upcoming):**\n\n"
+            "ই-পাসপোর্ট, এনআইডি ও জন্ম নিবন্ধন পোর্টাল শীঘ্রই যুক্ত হবে।"
         )
         await query.message.reply_text(msg, parse_mode="Markdown")
 
     elif query.data == "opt_help":
-        msg = (
-            "💡 **যেকোনো প্রশ্ন / সাহায্য:**\n\n"
-            "আপনার যা জানার দরকার চ্যাট বক্সে টাইপ করে পাঠিয় দিন। NAHID-AI সাথে সাথে উত্তর দেবে।"
-        )
+        msg = "💡 **যেকোনো প্রশ্ন বলুন:** আপনার প্রশ্নটি টাইপ করে পাঠান।"
         await query.message.reply_text(msg, parse_mode="Markdown")
 
     elif query.data == "opt_admin":
-        msg = (
-            f"👤 **এডমিন এর সাথে যোগাযোগ:**\n\n"
-            f"জরুরি সহায়তার জন্য এডমিনকে সরাসরি ইমেইল করুন:\n"
-            f"📧 `{ADMIN_EMAIL}`"
-        )
+        msg = f"👤 **এডমিন যোগাযোগ:**\n📧 `{ADMIN_EMAIL}`"
         await query.message.reply_text(msg, parse_mode="Markdown")
 
-# ছবি প্রসেসিং
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ আপনার ছবি প্রসেস করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
     
@@ -136,7 +110,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import PIL.Image
         img = PIL.Image.open(file_path)
         
-        # Gemini-1.5-flash মডেল ব্যবহার (ছবি দ্রুত প্রসেসের জন্য সেরা)
         response = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=[user_caption, img],
@@ -150,22 +123,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✨ **NAHID-AI বিশ্লেষণ সম্পন্ন করেছে!**\n\n"
             f"📝 **ফলাফল:**\n{response.text}\n\n"
             f"───────────────────\n"
-            f"🔓 **এইচডি রেজোলিউশনে দেখতে ও ফাইল ডাউনলোড করতে:**\n"
-            f"👉 [এখানে ক্লিক করুন]({ADSTERRA_DIRECT_LINK})"
+            f"🔓 **ডাউনলোড লিংক:** [এখানে ক্লিক করুন]({ADSTERRA_DIRECT_LINK})"
         )
         await update.message.reply_text(reply_message, parse_mode="Markdown")
 
     except Exception as e:
-        if "429" in str(e):
-            await update.message.reply_text("⚠️ অতিরিক্ত রিকোয়েস্ট এসেছে। অনুগ্রহ করে ১৫ সেকেন্ড পর আবার চেষ্টা করুন।")
-        else:
-            await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
+        await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
 
-# টেক্সট চ্যাট
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
-        # Gemini-1.5-flash মডেল ব্যবহার (স্মার্ট ও দ্রুত রেসপন্সের জন্য)
         response = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=user_text,
@@ -173,10 +140,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(response.text)
     except Exception as e:
-        if "429" in str(e):
-            await update.message.reply_text("⚠️ লিমিট পার হওয়ায় সার্ভার ব্যস্ত। ১৫ সেকেন্ড পর আবার চেষ্টা করুন।")
-        else:
-            await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
+        await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
