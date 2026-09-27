@@ -1,18 +1,4 @@
 import logging
-import google.generativeai as genai
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
-
-# ------------------------------------------------------------------
-# আপনার API Keys ও Token এখানে বসাবেন
-# ------------------------------------------------------------------
-import logging
 import os
 import google.generativeai as genai
 from telegram import Update
@@ -41,12 +27,26 @@ logging.basicConfig(
 
 # /start কমান্ড হ্যান্ডলার
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "হ্যালো! আমি আপনার AI অ্যাসিস্ট্যান্ট। আমাকে যেকোনো প্রশ্ন করতে পারেন।"
+    welcome_text = (
+        "👋 **স্বাগতম!**\n\n"
+        "আমি **Nahid AI**। আমাকে যেকোনো প্রশ্ন করতে পারেন, আমি সাহায্য করার জন্য প্রস্তুত।\n\n"
+        "💡 সাহায্য পেতে /help টাইপ করুন।"
     )
+    await update.message.reply_text(welcome_text, parse_mode="Markdown")
 
 
-# টেক্সট মেসেজ এবং Gemini AI দিয়ে উত্তর দেওয়ার হ্যান্ডলার
+# /help কমান্ড হ্যান্ডলার
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = (
+        "❓ **কীভাবে ব্যবহার করবেন:**\n\n"
+        "১. চ্যাট বক্সে যেকোনো প্রশ্ন টাইপ করে পাঠিয়ে দিন।\n"
+        "২. Nahid AI সাথে সাথে আপনার প্রশ্নের উত্তর তৈরি করে দেবে।\n"
+        "৩. নতুন চ্যাট শুরু করতে /start লিখুন।"
+    )
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+
+# সাধারণ মেসেজ এবং AI উত্তর হ্যান্ডলার
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
@@ -56,75 +56,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
 
 
-if __name__ == "__main__":
+def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
+    # কমান্ড হ্যান্ডলার যোগ করা
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+
+    # সাধারণ টেক্সট মেসেজ হ্যান্ডলার যোগ করা
     app.add_handler(
         MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
     )
 
-    print("Bot is running...")
-    app.run_polling()
-# কাস্টম টেক্সট রেসপন্স
-WEBSITE_LINKS = {
-    "হেল্প": "আপনাকে কীভাবে সাহায্য করতে পারি বলুন?",
-    "ওয়েবসাইট": "আমাদের ওয়েবসাইট ভিজিট করুন।",
-}
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  if not update.message:
-    return
-  await update.message.reply_text(
-      f"হ্যালো {update.effective_user.first_name}! 👋\nআমি নাহিদের এআই"
-      " অ্যাসিস্ট্যান্ট। আমাকে যেকোনো প্রশ্ন করতে পারেন।"
-  )
-
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  if not update.message or not update.message.text:
-    return
-
-  user_text = update.message.text.strip()
-  await update.message.chat.send_action(action="typing")
-
-  # ১. কিওয়ার্ড চেক
-  found_link = False
-  for keyword, link_text in WEBSITE_LINKS.items():
-    if keyword.lower() in user_text.lower():
-      await update.message.reply_text(link_text)
-      found_link = True
-      break
-
-  # ২. এআই রেসপন্স
-  if not found_link:
-    try:
-      response = model.generate_content(user_text)
-      if response and response.text:
-        await update.message.reply_text(response.text)
-      else:
-        await update.message.reply_text("দুঃখিত, কোনো উত্তর পাওয়া যায়নি।")
-    except Exception as e:
-      await update.message.reply_text(f"এআই সমস্যা: {e}")
-
-
-def main():
-  app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-
-  app.add_handler(CommandHandler("start", start))
-  app.add_handler(
-      MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-  )
-
-  print("✅ বট সফলভাবে চালু হয়েছে এবং কাজ করছে...")
-  app.run_polling()
+    print("Nahid AI Bot is running...")
+    app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
-  main()
+    main()
