@@ -138,7 +138,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         img = PIL.Image.open(file_path)
         
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.8-flash',
             contents=[user_caption, img],
             config={'system_instruction': system_prompt}
         )
@@ -166,7 +166,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            response = client.models.generate_content(
+            model='gemini-3.1-pro',
+            contents=[user_caption, img],
+            config={'system_instruction': system_prompt}
+        )',
             contents=user_text,
             config={'system_instruction': system_prompt}
         )
