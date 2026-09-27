@@ -1,6 +1,8 @@
 import logging
 import os
-import google.generativeai as genai
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from google import genai
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -11,51 +13,52 @@ from telegram.ext import (
     filters,
 )
 
-# Environment Variables থেকে Keys গ্রহণ
+# Render Health Check Fix (HTTP Server)
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
+    httpd.serve_forever()
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+# Environment Variables
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# আপনার Adsterra Direct Link
+# Adsterra Direct Link & Admin Email
 ADSTERRA_DIRECT_LINK = "https://www.highratecpmgate.com/your_adsterra_link_here"
-
-# এডমিন জিমেইল ঠিকানা
 ADMIN_EMAIL = "nahidkhanmd972@gmail.com"
 
-# Gemini API সেটিং
-genai.configure(api_key=GEMINI_API_KEY)
+# Gemini Client
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 system_prompt = (
     "তোমার নাম NAHID-AI। তোমাকে তৈরি করেছেন Md Nahid Hossen। "
-    "তুমি খুব দ্রুত, স্মার্ট এবং বিনয়ীভাবে বাংলা ভাষায় উত্তর দেবে। "
+    "তুমি খুব দ্রুত, স্মার্ট এবং অত্যন্ত বিনয়ীভাবে বাংলা ভাষায় উত্তর দেবে। "
     "কেউ তোমার নাম জানতে চাইলে বা পরিচয় জিজ্ঞেস করলে বলবে: "
-    "'আমি NAHID-AI, Md Nahid Hossen-এর তৈরি আপনার AI অ্যাসিস্ট্যান্ট। কীভাবে সাহায্য করতে পারি?'"
+    "'আমি NAHID-AI, Md Nahid Hossen-এর তৈরি আপনার অল-ইন-ওয়ান AI অ্যাসিস্ট্যান্ট। কীভাবে সাহায্য করতে পারি?'"
 )
 
-# গুগলের নির্দেশিত লাইভ মডেল
-model = genai.GenerativeModel(
-    model_name="gemini-3.8-flash",
-    system_instruction=system_prompt
-)
-
-# লগিং
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 
-# /start কমান্ড (ইনলাইন বাটন সহ অটো মেসেজ)
+# /start কমান্ড
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
-        "👋 **স্বাগতম!**\n\n"
-        "আমি **NAHID-AI**, Md Nahid Hossen-এর তৈরি আপনার AI অ্যাসিস্ট্যান্ট।\n\n"
-        "আপনার কী ধরনের সেবা প্রয়োজন? নিচের বাটন থেকে বেছে নিন:"
+        "🤖 **NAHID-AI স্মার্ট অ্যাসিস্ট্যান্ট-এ আপনাকে স্বাগতম!**\n\n"
+        "আমি **Md Nahid Hossen**-এর তৈরি একটি কৃত্রিম বুদ্ধিমত্তা। "
+        "আপনার প্রয়োজনীয় যেকোনো সেবা পেতে নিচের বাটনগুলোতে চাপ দিন:"
     )
     
-    # ইনলাইন ক্লিক্যাবল বাটন
     keyboard = [
-        [InlineKeyboardButton("🖼️ ছবি এডিটিং / বিশ্লেষণ", callback_data="opt_photo")],
-        [InlineKeyboardButton("💡 যেকোনো প্রশ্ন / সাহায্য", callback_data="opt_help")],
-        [InlineKeyboardButton("👤 এডমিনের সাথে যোগাযোগ", callback_data="opt_admin")]
+        [InlineKeyboardButton("📸 ছবি এডিটিং ও এআই বিশ্লেষণ", callback_data="opt_photo")],
+        [InlineKeyboardButton("🇲🇾 মালয়েশিয়া প্রবাসী সার্ভিস (আসছে...)", callback_data="opt_malaysia")],
+        [InlineKeyboardButton("🇧🇩 পাসপোর্ট ও সরকারি সেবা (আসছে...)", callback_data="opt_bd_gov")],
+        [InlineKeyboardButton("💡 যেকোনো প্রশ্ন / এআই হেল্প", callback_data="opt_help")],
+        [InlineKeyboardButton("👤 এডমিন হেল্পলাইন", callback_data="opt_admin")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -64,39 +67,67 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.callback_query:
         await update.callback_query.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-# বাটন ক্লিকের হ্যান্ডলার
+# বাটন হ্যান্ডলার
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "opt_photo":
         msg = (
-            "📸 **ছবি এডিটিং ও বিশ্লেষণ:**\n\n"
-            "অনুগ্রহ করে চ্যাট বক্সে আপনার **ছবিটি সেন্ড করুন** এবং সাথে প্রম্পট/নির্দেশনা লিখে দিন (যেমন: 'Background Idea', 'Image analysis')।"
+            "📸 **ছবি এডিটিং ও এআই বিশ্লেষণ:**\n\n"
+            "আপনার ছবিটি এখানে সেন্ড করুন এবং ছবির সাথে লিখে দিন আপনি কী করতে চান:\n"
+            "• ব্যাকগ্রাউন্ড আইডিয়া বা এডিটিং গাইড\n"
+            "• ছবি বিশ্লেষণ বা ডিটেইলস জানা\n"
+            "• পাসপোর্ট সাইজ ফটো মেকিং টিপস\n\n"
+            "👉 *একটি ছবি পাঠিয়ে পরীক্ষা করুন!*"
+        )
+        await query.message.reply_text(msg, parse_mode="Markdown")
+
+    elif query.data == "opt_malaysia":
+        msg = (
+            "🇲🇾 **মালয়েশিয়া প্রবাসীদের জন্য বিশেষ নোটিশ:**\n\n"
+            "আমরা আপনাদের সুবিধার্থে একটি বড় আপডেট আনছি! খুব শীঘ্রই এই বাটনে পাবেন:\n"
+            "✅ CIDB কার্ড চেক করার লিংক\n"
+            "✅ Visa status & Medical test চেক\n"
+            "✅ বাংলাদেশ হাই কমিশন মালয়েশিয়া সার্ভিসসমূহ\n"
+            "✅ রি-হায়ারিং ও কাজের দরকারি সব পোর্টাল এক জায়গায়!\n\n"
+            "🚀 *খুব দ্রুতই ফিচারটি যুক্ত হচ্ছে। বটটি আপনার চ্যাটে রাখুন!*"
+        )
+        await query.message.reply_text(msg, parse_mode="Markdown")
+
+    elif query.data == "opt_bd_gov":
+        msg = (
+            "🇧🇩 **পাসপোর্ট ও বাংলাদেশ সরকারি সেবা (Upcoming):**\n\n"
+            "আপনাদের সুবিধার জন্য সকল সরকারি পোর্টাল একসাথে যুক্ত করা হচ্ছে:\n"
+            "📌 ই-পাসপোর্ট (E-Passport) আবেদন ও স্ট্যাটাস চেক\n"
+            "📌 এনআইডি (NID) সংশোধন ও ডাউনলোড লিংক\n"
+            "📌 জন্ম নিবন্ধন অনলাইন যাচাই\n"
+            "📌 সকল দরকারি ওয়েবসাইট লিঙ্ক এক ক্লিকে!\n\n"
+            "⏳ *কাজ চলছে... আপডেট পেতে সাথেই থাকুন।*"
         )
         await query.message.reply_text(msg, parse_mode="Markdown")
 
     elif query.data == "opt_help":
         msg = (
-            "💡 **যেকোনো সাহায্য / প্রশ্ন:**\n\n"
-            "আপনার প্রশ্নটি চ্যাট বক্সে টাইপ করে পাঠিয়ে দিন। NAHID-AI সাথে সাথে উত্তর তৈরি করে দেবে।"
+            "💡 **যেকোনো প্রশ্ন / সাহায্য:**\n\n"
+            "আপনার মনে থাকা যেকোনো প্রশ্ন টাইপ করে পাঠিয়ে দিন। NAHID-AI সাথে সাথেই সঠিক উত্তর তৈরি করে দেবে।"
         )
         await query.message.reply_text(msg, parse_mode="Markdown")
 
     elif query.data == "opt_admin":
         msg = (
             f"👤 **এডমিন এর সাথে যোগাযোগ:**\n\n"
-            f"সরাসরি যোগাযোগ বা সহায়তার জন্য ইমেইল করুন:\n"
+            f"সরাসরি কোনো পরামর্শ বা জরুরি সহায়তার জন্য ইমেইল করুন:\n"
             f"📧 `{ADMIN_EMAIL}`\n\n"
-            f"আপনার বিষয় ইমেইলে লিখে পাঠালে দ্রুত উত্তর পাবেন।"
+            f"আমরা দ্রুততম সময়ে আপনার ইমেইলের উত্তর দেব।"
         )
         await query.message.reply_text(msg, parse_mode="Markdown")
 
-# ফটো + প্রম্পট হ্যান্ডলার (Adsterra Monetization)
+# ফটো + প্রম্পট হ্যান্ডলার
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ আপনার ছবি ও প্রম্পট প্রসেস করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
+    await update.message.reply_text("⏳ আপনার ছবি ও নির্দেশনা প্রসেস করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
     
-    user_caption = update.message.caption if update.message.caption else "Describe and analyze this image in detail."
+    user_caption = update.message.caption if update.message.caption else "Analyze this image and suggest photo editing details."
     
     try:
         photo_file = await update.message.photo[-1].get_file()
@@ -106,17 +137,21 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import PIL.Image
         img = PIL.Image.open(file_path)
         
-        response = model.generate_content([user_caption, img])
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[user_caption, img],
+            config={'system_instruction': system_prompt}
+        )
         
         if os.path.exists(file_path):
             os.remove(file_path)
 
         reply_message = (
-            f"✨ **NAHID-AI বিশ্লেষণ সম্পন্ন করেছে!**\n\n"
+            f"✨ **NAHID-AI রেজাল্ট তৈরি করেছে!**\n\n"
             f"📝 **ফলাফল:**\n{response.text}\n\n"
             f"───────────────────\n"
-            f"🔓 **এইচডি রেজোলিউশনে দেখতে ও ডাউনলোড করতে লিংক:**\n"
-            f"👉 [এখানে ক্লিক করে ফলাফল দেখুন]({ADSTERRA_DIRECT_LINK})"
+            f"🔓 **এইচডি এডিটেড ছবি ও ফাইল ডাউনলোড করতে নিচের লিংকে যান:**\n"
+            f"👉 [এখানে ক্লিক করে হাই-কোয়ালিটিতে ডাউনলোড করুন]({ADSTERRA_DIRECT_LINK})"
         )
         await update.message.reply_text(reply_message, parse_mode="Markdown")
 
@@ -126,15 +161,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
 
-# টেক্সট মেসেজ হ্যান্ডলার
+# টেক্সট হ্যান্ডলার
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
-        response = model.generate_content(user_text)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=user_text,
+            config={'system_instruction': system_prompt}
+        )
         await update.message.reply_text(response.text)
     except Exception as e:
         if "429" in str(e):
-            await update.message.reply_text("⚠️ সার্ভারে অতিরিক্ত চাপ থাকায় লিমিট শেষ হয়েছে। অনুগ্রহ করে ১৫ সেকেন্ড পর আবার চেষ্টা করুন।")
+            await update.message.reply_text("⚠️ অতিরিক্ত চাপের কারণে লিমিট শেষ হয়েছে। অনুগ্রহ করে ১৫ সেকেন্ড পর চেষ্টা করুন।")
         else:
             await update.message.reply_text(f"একটি সমস্যা হয়েছে: {str(e)}")
 
@@ -146,22 +185,8 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("NAHID-AI Interactive Bot is running...")
+    print("NAHID-AI Unique Interactive Bot is running...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
-import os
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-import threading
-
-def run_dummy_server():
-    port = int(os.environ.get("PORT", 8080))
-    server_address = ('', port)
-    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
-    httpd.serve_forever()
-
-# Background Thread এ ডামি সার্ভার চালু করা
-threading.Thread(target=run_dummy_server, daemon=True).start()
-
-# এরপর আপনার বটের আসল কোড থাকবে...
