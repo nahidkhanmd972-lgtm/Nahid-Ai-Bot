@@ -3,6 +3,7 @@ import os
 import threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from google import genai
+from google.genai import types
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -110,10 +111,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import PIL.Image
         img = PIL.Image.open(file_path)
         
+        # লেটেস্ট gemini-3.5-flash মডেল ব্যবহার করা হয়েছে
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-3.5-flash',
             contents=[user_caption, img],
-            config={'system_instruction': system_prompt}
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt
+            )
         )
         
         if os.path.exists(file_path):
@@ -133,10 +137,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     try:
+        # লেটেস্ট gemini-3.5-flash মডেল ব্যবহার করা হয়েছে
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-3.5-flash',
             contents=user_text,
-            config={'system_instruction': system_prompt}
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt
+            )
         )
         await update.message.reply_text(response.text)
     except Exception as e:
