@@ -1,5 +1,7 @@
 import os
 import logging
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, 
@@ -30,6 +32,18 @@ if GEMINI_API_KEY:
     client = genai.Client(api_key=GEMINI_API_KEY)
 else:
     logging.error("GEMINI_API_KEY পাওয়া যায়নি!")
+
+# Render Port Timeout বাইপাস করার জন্য ছোট HTTP Server
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    server.serve_forever()
 
 # মূল ইনলাইন কিবোর্ড/বাটন তৈরি
 def get_main_keyboard():
@@ -135,6 +149,9 @@ def main():
     if not TELEGRAM_BOT_TOKEN:
         print("Error: TELEGRAM_BOT_TOKEN পাওয়া যায়নি!")
         return
+
+    # পোর্ট বাইপাস করার ব্যাকগ্রাউন্ড থ্রেড চালু
+    Thread(target=run_dummy_server, daemon=True).start()
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
