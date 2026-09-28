@@ -13,47 +13,55 @@ from telegram.ext import (
 )
 from google import genai
 
-# Logging সেটআপ
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-# Render Environment Variables থেকে API Key সংগ্রহ
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# আপনার টেলিগ্রাম যোগাযোগের লিংক
-MY_TELEGRAM_LINK = "https://telegram.org/dl"
+# আপনার টেলিগ্রাম ইউজারনেম বা সাপোর্ট লিঙ্ক (এখানে আপনার ইউজারনেম বসান)
+MY_TELEGRAM_LINK = "https://t.me/your_telegram_username"
 
-# Gemini Client তৈরি
 client = None
 if GEMINI_API_KEY:
-    client = genai.Client(api_key=GEMINI_API_KEY)
-else:
-    logging.error("GEMINI_API_KEY পাওয়া যায়নি!")
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        logging.error(f"Gemini Client error: {e}")
 
-# Render Port Timeout বাইপাস করার জন্য ছোট HTTP Server
+# Render Health Check (Render যেন বট সচল রাখে)
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot is alive!")
 
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
     server.serve_forever()
 
-# মূল ইনলাইন কিবোর্ড/বাটন তৈরি
+# ইনলাইন বাটন ও প্রধান সুইচ মেনু
 def get_main_keyboard():
     keyboard = [
         [
-            InlineKeyboardButton("🚀 সকল ভার্সন ও ফিচারসমূহ", callback_data="show_features"),
-            InlineKeyboardButton("💬 কথা বলতে ক্লিক করুন", url=MY_TELEGRAM_LINK)
+            InlineKeyboardButton("🎬 Video Downloader (FB/TikTok/IG)", callback_data="feature_downloader"),
         ],
         [
-            InlineKeyboardButton("🤖 আমাদের ২য় বটের আপডেট (Coming Soon)", callback_data="next_bot")
+            InlineKeyboardButton("📹 YouTube Video & Prompt Planner", callback_data="feature_yt_planner")
+        ],
+        [
+            InlineKeyboardButton("🏛️ পাসপোর্ট ও সরকারি ওয়েবসাইট লিঙ্ক", callback_data="feature_gov_links")
+        ],
+        [
+            InlineKeyboardButton("💬 অ্যাডমিনের সাথে কথা বলুন", url=MY_TELEGRAM_LINK),
+            InlineKeyboardButton("🚀 ফিউচার আপডেটস ও ভার্সন", callback_data="show_features")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -63,56 +71,93 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user.first_name
     welcome_text = (
         f"হ্যালো {user}! 👋\n\n"
-        f"আমি Gemini AI চালিত আপনার পার্সোনাল অ্যাসিস্ট্যান্ট বট।\n"
-        f"আপনি আমাকে যেকোনো প্রশ্ন করতে পারেন।\n\n"
-        f"নিচের বাটনগুলো ব্যবহার করে আমাদের আগামী ফিচারসমূহ ও যোগাযোগ সম্পর্কে জানতে পারেন:"
+        f"আমি **AI Assistant**, আপনার জন্য কি করতে পারি?\n\n"
+        f"আপনি আমাকে সরাসরি যেকোনো প্রশ্ন করতে পারেন, অথবা নিচের সুইচগুলো ব্যবহার করে আমাদের আগামী ফিচার ও সার্ভিসসমূহ দেখতে পারেন:"
     )
-    await update.message.reply_text(welcome_text, reply_markup=get_main_keyboard())
+    await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
-# /contact বা /features কমান্ড
+# /contact বা হেল্প কমান্ড হ্যান্ডলার
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"আমাদের সাথে যোগাযোগ করতে বা বিস্তারিত জানতে নিচের বাটনগুলো ব্যবহার করুন:",
+        "যোগাযোগ বা আমাদের ফিচারসমূহ ব্যবহারের জন্য নিচের যেকোনো সুইচে ক্লিক করুন:",
+        parse_mode="Markdown",
         reply_markup=get_main_keyboard()
     )
 
-# বাটন ক্লিকের রেসপন্স (Callback Queries)
+# বাটন ক্লিকের হ্যান্ডলার
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    if query.data == "show_features":
+    if query.data == "feature_downloader":
+        downloader_text = (
+            "📥 *Social Media Video Downloader Bot (Coming Soon)* 🎬\n\n"
+            "খুব শীঘ্রই এই ফিচারের মাধ্যমে আপনি এক ক্লিকেই ভিডিও ডাউনলোড করতে পারবেন:\n"
+            "• Facebook Video & Reels Downloader 🟦\n"
+            "• TikTok Watermark-Free Downloader 🎵\n"
+            "• Instagram Reels & Post Downloader 📸\n"
+            "• YouTube Shorts Downloader 🔴\n\n"
+            "⏳ *স্ট্যাটাস:* কাজ চলছে, খুব শীঘ্রই চালু হবে!"
+        )
+        await query.message.reply_text(downloader_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
+
+    elif query.data == "feature_yt_planner":
+        yt_text = (
+            "📹 *YouTube Video Planner & Prompt Generator (Coming Soon)* 🚀\n\n"
+            "কনটেন্ট ক্রিয়েটরদের জন্য বিশেষ এআই টুল:\n"
+            "• ভিডিও আইডিয়া বিশ্লেষণ ও প্ল্যান তৈরি 💡\n"
+            "• সম্পূর্ণ ভিডিওর স্ক্রিপ্ট জেনারেটর 📜\n"
+            "• SEO টাইটেল, ডেসক্রিপশন ও ট্যাগ তৈরি 🏷️\n"
+            "• AI Video Prompt জেনারেটর 🎨\n\n"
+            "⏳ *স্ট্যাটাস:* পরবর্তী আপডেটে যুক্ত করা হবে!"
+        )
+        await query.message.reply_text(yt_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
+
+    elif query.data == "feature_gov_links":
+        gov_text = (
+            "🏛️ *বাংলাদেশ সরকারি সেবা ও ই-পাসপোর্ট পোর্টাল* 🇧🇩\n\n"
+            "সহজেই সরকারি সেবা পেতে নিচের অফিশিয়াল লিঙ্কগুলো ব্যবহার করুন:\n\n"
+            "• 🛂 *ই-পাসপোর্ট অনলাইন আবেদন:* [epassport.gov.bd](https://www.epassport.gov.bd/)\n"
+            "• 🆔 *এনআইডি সার্ভিস পোর্টাল:* [services.nidw.gov.bd](https://services.nidw.gov.bd/)\n"
+            "• 🌐 *জাতীয় তথ্য বাতায়ন:* [bangladesh.gov.bd](https://bangladesh.gov.bd/)\n"
+            "• 📑 *জন্ম ও মৃত্যু নিবন্ধন:* [bdris.gov.bd](https://bdris.gov.bd/)\n\n"
+            "💡 *দ্রষ্টব্য:* পরবর্তীতে আরও সরকারি সার্ভিস পোর্টাল এখানে যুক্ত করা হবে।"
+        )
+        await query.message.reply_text(gov_text, parse_mode="Markdown", disable_web_page_preview=True, reply_markup=get_main_keyboard())
+
+    elif query.data == "show_features":
         features_text = (
-            "✨ *আমাদের প্ল্যাটফর্মের ভার্সন ও ভবিষ্যৎ ফিচারসমূহ:* ✨\n\n"
-            "🔹 *Version 1.0 (Current):* Gemini AI Chat & Fast Support\n"
-            "🔹 *Version 2.0 (Upcoming):* Image Generator & Vision AI\n"
-            "🔹 *Version 3.0 (Upcoming):* Voice Message Converter & Automation\n\n"
-            "📢 *বিশেষ বার্তা:* আমাদের এই ফিচারগুলো অত্যন্ত শীঘ্রই চালু হতে যাচ্ছে, শুধুমাত্র আপনাদের সেরা অভিজ্ঞতা দেওয়ার জন্য! আমাদের সাথেই থাকুন। ❤️"
+            "🚀 *আমাদের সকল রোডম্যাপ ও আগামী প্ল্যান:* ✨\n\n"
+            "🟢 *Version 1.0 (Active):*\n"
+            "• Gemini AI Chat Assistant 💬\n"
+            "• Fast Support & Gov Portal Directory 🏛️\n\n"
+            "🟡 *Version 2.0 (In Progress):*\n"
+            "• Social Media Video Downloader Bot 🎬\n"
+            "• Passport & Gov Service Helper 🛂\n\n"
+            "🔵 *Version 3.0 (Planned):*\n"
+            "• YouTube Video & AI Prompt Planner 📹\n"
+            "• HD AI Image Generator 🎨\n\n"
+            "🟣 *Version 4.0 (Future Update):*\n"
+            "• Direct Admin Support Switch 💬\n"
+            "• Automated Tools & Workflows 💻\n\n"
+            "📢 যেকোনো প্রশ্ন থাকলে আমাদের অ্যাডমিনের সাথে যোগাযোগ করুন!"
         )
         await query.message.reply_text(features_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
-    elif query.data == "next_bot":
-        next_bot_text = (
-            "🤖 *আমাদের ২য় বটের আপডেট:* \n\n"
-            "আমরা আরও একটি অ্যাডভান্সড বটের ওপর কাজ করছি যা খুব শীঘ্রই আপনাদের সামনে আনা হবে। "
-            "আপনাদের জন্য আমরা সব ধরনের ফিচার এক ছাদের নিচে নিয়ে আসছি!"
-        )
-        await query.message.reply_text(next_bot_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
-
-# মেসেজ প্রসেসিং ও Gemini AI রেসপন্স
+# সাধারণ মেসেজ ও Gemini AI রেসপন্স হ্যান্ডলার
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_prompt = update.message.text
     
-    # ইউজার যদি কথা বলার ইচ্ছা বা ফিচারের কথা প্রকাশ করে
-    contact_keywords = ["কথা বলতে চাই", "contact", "owner", "admin", "যোগাযোগ", "feature", "ফিচার", "version"]
+    # কিছু নির্দিষ্ট কিওয়ার্ড দিলে সুইচের মেনু চলে আসবে
+    contact_keywords = ["কথা বলতে চাই", "contact", "owner", "admin", "যোগাযোগ", "feature", "ফিচার", "version", "passport", "পাসপোর্ট", "video", "ভিডিও"]
     if any(keyword in user_prompt.lower() for keyword in contact_keywords):
         await update.message.reply_text(
-            "নিচের মেনু থেকে আপনার পছন্দমতো অপশনটি বেছে নিন:",
+            "আপনার প্রয়োজন অনুযায়ী নিচের সুইচগুলো চাপুন:",
+            parse_mode="Markdown",
             reply_markup=get_main_keyboard()
         )
         return
 
-    # ইউজারকে অপেক্ষমাণ বার্তা পাঠানো
     sent_message = await update.message.reply_text("প্রসেস করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
 
     try:
@@ -124,14 +169,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # নতুন google-genai SDK দিয়ে রেসপন্স তৈরি
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=user_prompt
         )
         ai_reply = response.text
 
-        # টেলিগ্রামে উত্তর পাঠানো
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             message_id=sent_message.message_id,
@@ -147,22 +190,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TELEGRAM_BOT_TOKEN:
-        print("Error: TELEGRAM_BOT_TOKEN পাওয়া যায়নি!")
+        print("CRITICAL ERROR: TELEGRAM_BOT_TOKEN পাওয়া যায়নি!")
         return
 
-    # পোর্ট বাইপাস করার ব্যাকগ্রাউন্ড থ্রেড চালু
     Thread(target=run_dummy_server, daemon=True).start()
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # হ্যান্ডলার যুক্ত করা
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("contact", contact))
     app.add_handler(CommandHandler("features", contact))
     app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Bot চালিত হচ্ছে...")
+    print("Bot সফলভাবে চালু হয়েছে...")
     app.run_polling()
 
 if __name__ == '__main__':
