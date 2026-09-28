@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -13,6 +14,7 @@ from telegram.ext import (
 )
 from google import genai
 
+# লগিং সেটআপ
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -21,17 +23,21 @@ logging.basicConfig(
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# আপনার টেলিগ্রাম ইউজারনেম বা সাপোর্ট লিঙ্ক (এখানে আপনার ইউজারনেম বসান)
+# আপনার টেলিগ্রাম ইউজারনেম বা সাপোর্ট লিঙ্ক
 MY_TELEGRAM_LINK = "https://t.me/your_telegram_username"
 
+# Gemini Client তৈরি
 client = None
 if GEMINI_API_KEY:
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
+        logging.info("Gemini Client successfully initialized.")
     except Exception as e:
         logging.error(f"Gemini Client error: {e}")
+else:
+    logging.warning("GEMINI_API_KEY environment variable is not set!")
 
-# Render Health Check (Render যেন বট সচল রাখে)
+# Render Health Check Server
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -45,9 +51,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    logging.info(f"Health check server running on port {port}")
     server.serve_forever()
 
-# ইনলাইন বাটন ও প্রধান সুইচ মেনু
+# প্রধান ইনলাইন কিবোর্ড মেনু
 def get_main_keyboard():
     keyboard = [
         [
@@ -66,9 +73,9 @@ def get_main_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# /start কমান্ড হ্যান্ডলার
+# /start কমান্ড
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user.first_name
+    user = update.effective_user.first_name if update.effective_user else "User"
     welcome_text = (
         f"হ্যালো {user}! 👋\n\n"
         f"আমি **AI Assistant**, আপনার জন্য কি করতে পারি?\n\n"
@@ -76,7 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
-# /contact বা হেল্প কমান্ড হ্যান্ডলার
+# /contact বা হেল্প কমান্ড
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "যোগাযোগ বা আমাদের ফিচারসমূহ ব্যবহারের জন্য নিচের যেকোনো সুইচে ক্লিক করুন:",
@@ -84,7 +91,7 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_keyboard()
     )
 
-# বাটন ক্লিকের হ্যান্ডলার
+# বাটন ক্লিক হ্যান্ডলার
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -144,11 +151,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await query.message.reply_text(features_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
 
-# সাধারণ মেসেজ ও Gemini AI রেসপন্স হ্যান্ডলার
+# সাধারণ মেসেজ হ্যান্ডলার
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_prompt = update.message.text
     
-    # কিছু নির্দিষ্ট কিওয়ার্ড দিলে সুইচের মেনু চলে আসবে
     contact_keywords = ["কথা বলতে চাই", "contact", "owner", "admin", "যোগাযোগ", "feature", "ফিচার", "version", "passport", "পাসপোর্ট", "video", "ভিডিও"]
     if any(keyword in user_prompt.lower() for keyword in contact_keywords):
         await update.message.reply_text(
@@ -181,7 +187,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=ai_reply
         )
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Gemini generation error: {e}")
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             message_id=sent_message.message_id,
@@ -190,11 +196,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TELEGRAM_BOT_TOKEN:
-        print("CRITICAL ERROR: TELEGRAM_BOT_TOKEN পাওয়া যায়নি!")
+        logging.critical("CRITICAL ERROR: TELEGRAM_BOT_TOKEN পাওয়া যায়নি! প্রোগ্রাম বন্ধ হচ্ছে।")
         return
 
+    # ডামি ডাব্লিউইবি সার্ভার ব্যাকগ্রাউন্ডে চালু করা
     Thread(target=run_dummy_server, daemon=True).start()
 
+    # টেলিগ্রাম বট অ্যাপ তৈরি
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -203,7 +211,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Bot সফলভাবে চালু হয়েছে...")
+    logging.info("Bot সফলভাবে চালু হয়েছে...")
     app.run_polling()
 
 if __name__ == '__main__':
