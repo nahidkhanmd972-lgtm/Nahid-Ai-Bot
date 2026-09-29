@@ -1,117 +1,92 @@
-<?xml version="1.0" encoding="UTF-8"?>
+import logging
+from google import genai
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
-<telegram_bot>
+# ------------------------------------------------------------------
+# আপনার API Keys ও Token এখানে বসাবেন
+# ------------------------------------------------------------------
+TELEGRAM_BOT_TOKEN = ""
+GEMINI_API_KEY = ""
+# ------------------------------------------------------------------
 
-    <bot>
-        <name>PROBASHI AI</name>
-        <version>1.0</version>
-        <language>bn</language>
-        <description>
-            Bangladeshi expatriates support and AI assistant
-        </description>
-    </bot>
+# কাস্টম টেক্সট রেসপন্স
+WEBSITE_LINKS = {
+    "হেল্প": "আপনাকে কীভাবে সাহায্য করতে পারি বলুন?",
+    "ওয়েবসাইট": "আমাদের ওয়েবসাইট ভিজিট করুন।",
+}
 
-    <welcome>
-        <message>
-            হ্যালো! 👋
-            
-            আমি PROBASHI AI 🤖
-            আপনার যেকোনো প্রশ্নের উত্তর দিতে প্রস্তুত।
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-            নিচের অপশনগুলো ব্যবহার করুন অথবা সরাসরি আমাকে প্রশ্ন করুন।
-        </message>
-    </welcome>
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 
-    <features>
+SYSTEM_INSTRUCTION = """
+তুমি নাহিদের তৈরি করা একটি স্মার্ট এআই অ্যাসিস্ট্যান্ট। 
+ইউজারদের প্রশ্নের উত্তর বিনয়ের সাথে ও সংক্ষেপে বাংলায় দেবে।
+"""
 
-        <feature id="ai">
-            <name>🤖 AI Assistant</name>
-            <status>active</status>
-            <description>AI দিয়ে প্রশ্নের উত্তর</description>
-        </feature>
 
-        <feature id="government">
-            <name>🏛️ সরকারি সেবা</name>
-            <status>active</status>
-            <description>বাংলাদেশের গুরুত্বপূর্ণ সরকারি ওয়েবসাইট</description>
-        </feature>
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    await update.message.reply_text(
+        f"হ্যালো {update.effective_user.first_name}! 👋\nআমি নাহিদের এআই অ্যাসিস্ট্যান্ট। আমাকে যেকোনো প্রশ্ন করতে পারেন।"
+    )
 
-        <feature id="passport">
-            <name>🛂 Passport Service</name>
-            <status>active</status>
-            <description>ই-পাসপোর্ট ও প্রয়োজনীয় তথ্য</description>
-        </feature>
 
-        <feature id="video_downloader">
-            <name>🎬 Video Downloader</name>
-            <status>coming_soon</status>
-            <description>অনুমোদিত সোর্সের ভিডিও প্রসেসিং</description>
-        </feature>
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
 
-        <feature id="youtube_planner">
-            <name>📹 YouTube Planner</name>
-            <status>coming_soon</status>
-            <description>ভিডিও আইডিয়া, স্ক্রিপ্ট ও AI prompt</description>
-        </feature>
+    user_text = update.message.text.strip()
+    await update.message.chat.send_action(action="typing")
 
-        <feature id="admin">
-            <name>💬 Admin Support</name>
-            <status>active</status>
-            <description>অ্যাডমিনের সাথে যোগাযোগ</description>
-        </feature>
+    found_link = False
+    for keyword, link_text in WEBSITE_LINKS.items():
+        if keyword.lower() in user_text.lower():
+            await update.message.reply_text(link_text)
+            found_link = True
+            break
 
-    </features>
+    if not found_link:
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=user_text,
+                config={"system_instruction": SYSTEM_INSTRUCTION},
+            )
+            if response and response.text:
+                await update.message.reply_text(response.text)
+            else:
+                await update.message.reply_text("দুঃখিত, কোনো উত্তর পাওয়া যায়নি।")
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            await update.message.reply_text("এআই রেসপন্স দিতে সমস্যা হচ্ছে।")
 
-    <government_services>
 
-        <service>
-            <name>ই-পাসপোর্ট</name>
-            <url>https://www.epassport.gov.bd/</url>
-        </service>
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-        <service>
-            <name>NID Services</name>
-            <url>https://services.nidw.gov.bd/</url>
-        </service>
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    )
 
-        <service>
-            <name>Bangladesh National Portal</name>
-            <url>https://bangladesh.gov.bd/</url>
-        </service>
+    print("✅ বট সফলভাবে চালু হয়েছে এবং কাজ করছে...")
+    app.run_polling()
 
-        <service>
-            <name>Birth Registration</name>
-            <url>https://bdris.gov.bd/</url>
-        </service>
 
-    </government_services>
-
-    <buttons>
-
-        <button id="ai">
-            <text>🤖 AI Assistant</text>
-        </button>
-
-        <button id="government">
-            <text>🏛️ সরকারি সেবা</text>
-        </button>
-
-        <button id="passport">
-            <text>🛂 Passport</text>
-        </button>
-
-        <button id="video">
-            <text>🎬 Video Downloader</text>
-        </button>
-
-        <button id="youtube">
-            <text>📹 YouTube Planner</text>
-        </button>
-
-        <button id="admin">
-            <text>💬 Admin Support</text>
-        </button>
-
-    </buttons>
-
-</telegram_bot>
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print("বট বন্ধ করা হয়েছে।")
